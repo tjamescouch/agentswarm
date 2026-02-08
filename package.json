@@ -1,11 +1,15 @@
 {
   "name": "agentctl-swarm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Supervisor for spawning, managing, and recovering fleets of AI agents coordinated through agentchat",
   "type": "module",
   "main": "lib/index.js",
+  "bin": {
+    "agentctl": "bin/agentctl.js"
+  },
   "scripts": {
-    "test": "node --test lib/*.test.js"
+    "test": "node --test lib/*.test.js bin/*.test.js",
+    "start": "node bin/agentctl.js start"
   },
   "keywords": ["agents", "swarm", "agentchat", "supervisor"],
   "author": "James Couch",
