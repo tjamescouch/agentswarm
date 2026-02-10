@@ -8,6 +8,7 @@ ENCRYPTED_TOKEN_FILE="$SECRETS_DIR/oauth-token.enc"
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 IMAGE_NAME="agentchat-agent:latest"
+AGENTCHAT_REPO="${AGENTCHAT_REPO:-$(dirname "$REPO_ROOT")/agentchat}"
 CONTAINER_PREFIX="agentchat"
 
 # Default server URL
@@ -191,8 +192,13 @@ with open(state_file, 'w') as f:
 }
 
 build_image() {
-    echo "Building agent image..."
-    podman build -t "$IMAGE_NAME" -f "$REPO_ROOT/docker/agent.Dockerfile" "$REPO_ROOT"
+    if [ ! -d "$AGENTCHAT_REPO/docker" ]; then
+        echo "ERROR: agentchat repo not found at $AGENTCHAT_REPO"
+        echo "Set AGENTCHAT_REPO env var to your agentchat checkout"
+        exit 1
+    fi
+    echo "Building agent image from $AGENTCHAT_REPO..."
+    podman build -t "$IMAGE_NAME" -f "$AGENTCHAT_REPO/docker/agent.Dockerfile" "$AGENTCHAT_REPO"
     echo "Image '$IMAGE_NAME' built successfully"
 }
 
