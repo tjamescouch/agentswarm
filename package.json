@@ -5,7 +5,8 @@
   "type": "module",
   "main": "lib/index.js",
   "bin": {
-    "agentctl": "bin/agentctl.js"
+    "agentctl": "bin/agentctl",
+    "agentctl-swarm": "bin/agentctl.js"
   },
   "scripts": {
     "test": "node --test lib/*.test.js bin/*.test.js",
