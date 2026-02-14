@@ -246,20 +246,40 @@ EOF
         labels="$labels --label agentchat.protected=true"
     fi
 
+    # Write token to a temp file for secure mounting (P0-SANDBOX-2)
+    # The supervisor reads this file and deletes it after loading.
+    local token_file
+    token_file=$(mktemp)
+    echo -n "$CLAUDE_CODE_OAUTH_TOKEN" > "$token_file"
+    chmod 600 "$token_file"
+
+    # Determine identity file for this specific agent (P0-SANDBOX-3)
+    local identity_mount=""
+    local identity_file="${HOME}/.agentchat/identities/${name}.json"
+    if [ -f "$identity_file" ]; then
+        identity_mount="-v ${identity_file}:/home/agent/.agentchat/identities/${name}.json:ro"
+    fi
+
+
     echo "Starting agent '$name' in container..."
     podman run -d \
         --name "$(container_name "$name")" \
         --restart on-failure:3 \
         $labels \
-        -e "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}" \
         -e "AGENTCHAT_PUBLIC=true" \
         -e "AGENTCHAT_URL=${AGENTCHAT_URL}" \
+        -v "${token_file}:/run/secrets/oauth-token:ro" \
         -v "${state_dir}:/home/agent/.agentchat/agents/${name}" \
-        -v "${HOME}/.agentchat/identities:/home/agent/.agentchat/identities" \
+        $identity_mount \
         "$IMAGE_NAME" \
         "$name" "$mission" > /dev/null
 
-    if [ $? -eq 0 ]; then
+    local run_status=$?
+
+    # Clean up host-side token file immediately
+    rm -f "$token_file"
+
+    if [ $run_status -eq 0 ]; then
         echo "Agent '$name' started (container $(container_name "$name"))"
     else
         echo "Failed to start agent '$name'"
