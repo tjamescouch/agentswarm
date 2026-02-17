@@ -288,10 +288,13 @@ EOF
     chmod 600 "$token_file"
 
     # Determine identity file for this specific agent (P0-SANDBOX-3)
+    # Mount as both identities/<name>.json (for agentchat-mcp) and
+    # the default identity.json path (for agentchat send used by gro --show-diffs)
     local identity_mount=""
     local identity_file="${HOME}/.agentchat/identities/${name}.json"
     if [ -f "$identity_file" ]; then
         identity_mount="-v ${identity_file}:/home/agent/.agentchat/identities/${name}.json:ro"
+        identity_mount="${identity_mount} -v ${identity_file}:/home/agent/.agentchat/identity.json:ro"
     fi
 
 
