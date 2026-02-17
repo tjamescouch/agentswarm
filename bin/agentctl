@@ -148,6 +148,10 @@ Commands:
 Environment:
   CLAUDE_CODE_OAUTH_TOKEN  Optional. If set, skips passphrase prompt.
   AGENTCHAT_URL            AgentChat server URL (default: wss://agentchat-server.fly.dev)
+  AGENTAUTH_PORT           If set, use agentauth proxy mode (gro runtime) on this port.
+                           No OAuth token needed. AGENTAUTH_HOST defaults to host.lima.internal.
+  AGENTAUTH_HOST           Proxy host (default: host.lima.internal, only used with AGENTAUTH_PORT)
+  AGENTCTL_REPO            Path to agentchat repo for Dockerfile resolution
 
 Examples:
   agentctl build
@@ -224,8 +228,19 @@ start_agent() {
         exit 1
     fi
 
-    # Decrypt OAuth token (prompts for passphrase if not in env)
-    decrypt_token
+    # Auth mode: agentauth proxy (gro) takes priority over OAuth token (claude-code).
+    # Set AGENTAUTH_PORT (default: 9999) to use the proxy — no passphrase required.
+    local use_proxy=""
+    local proxy_port="${AGENTAUTH_PORT:-9999}"
+    local proxy_host="${AGENTAUTH_HOST:-host.lima.internal}"
+    if [ -n "${AGENTAUTH_PORT:-}" ] || [ -n "${AGENTAUTH_HOST:-}" ]; then
+        use_proxy="true"
+    fi
+
+    if [ -z "$use_proxy" ]; then
+        # Decrypt OAuth token (prompts for passphrase if not in env)
+        decrypt_token
+    fi
 
     # Check if already running
     if is_container_running "$name"; then
@@ -280,6 +295,20 @@ EOF
     fi
 
 
+    # Build auth env args depending on mode
+    local auth_args=()
+    if [ -n "$use_proxy" ]; then
+        auth_args=(
+            -e "ANTHROPIC_BASE_URL=http://${proxy_host}:${proxy_port}"
+            -e "ANTHROPIC_API_KEY=proxy-managed"
+            -e "OPENAI_BASE_URL=http://${proxy_host}:${proxy_port}/openai"
+            -e "OPENAI_API_KEY=proxy-managed"
+            -e "AGENT_RUNTIME=gro"
+        )
+    else
+        auth_args=(-v "${token_file}:/run/secrets/oauth-token:ro")
+    fi
+
     echo "Starting agent '$name' in container..."
     podman run -d \
         --name "$(container_name "$name")" \
@@ -287,7 +316,7 @@ EOF
         $labels \
         -e "AGENTCHAT_PUBLIC=true" \
         -e "AGENTCHAT_URL=${AGENTCHAT_URL}" \
-        -v "${token_file}:/run/secrets/oauth-token:ro" \
+        "${auth_args[@]}" \
         -v "${state_dir}:/home/agent/.agentchat/agents/${name}" \
         $identity_mount \
         "$IMAGE_NAME" \
@@ -295,7 +324,7 @@ EOF
 
     local run_status=$?
 
-    # Clean up host-side token file immediately
+    # Clean up host-side token file immediately (only exists in OAuth mode)
     rm -f "$token_file"
 
     if [ $run_status -eq 0 ]; then
