@@ -299,7 +299,7 @@ EOF
     local auth_args=()
     if [ -n "$use_proxy" ]; then
         auth_args=(
-            -e "ANTHROPIC_BASE_URL=http://${proxy_host}:${proxy_port}"
+            -e "ANTHROPIC_BASE_URL=http://${proxy_host}:${proxy_port}/anthropic"
             -e "ANTHROPIC_API_KEY=proxy-managed"
             -e "OPENAI_BASE_URL=http://${proxy_host}:${proxy_port}/openai"
             -e "OPENAI_API_KEY=proxy-managed"
