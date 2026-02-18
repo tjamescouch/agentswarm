@@ -294,6 +294,7 @@ EOF
     local identity_mount=""
     local identity_file="${HOME}/.agentchat/identities/${name}.json"
     if [ -f "$identity_file" ]; then
+        chmod 644 "$identity_file" 2>/dev/null || sudo chmod 644 "$identity_file" 2>/dev/null || true
         identity_mount="-v ${identity_file}:/home/agent/.agentchat/identities/${name}.json:ro"
         identity_mount="${identity_mount} -v ${identity_file}:/home/agent/.agentchat/identity.json:ro"
     fi
