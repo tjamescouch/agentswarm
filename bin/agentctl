@@ -337,6 +337,8 @@ EOF
             -e "ANTHROPIC_API_KEY=proxy-managed"
             -e "OPENAI_BASE_URL=http://${proxy_host}:${proxy_port}/openai"
             -e "OPENAI_API_KEY=proxy-managed"
+            -e "GROQ_BASE_URL=http://${proxy_host}:${proxy_port}/groq"
+            -e "GROQ_API_KEY=proxy-managed"
             -e "AGENT_RUNTIME=gro"
         )
         if [ -n "$model" ]; then
