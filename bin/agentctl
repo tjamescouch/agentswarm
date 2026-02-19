@@ -154,10 +154,14 @@ Environment:
   AGENTAUTH_HOST           Proxy host (default: host.lima.internal, only used with AGENTAUTH_PORT)
   AGENTCTL_REPO            Path to agentchat repo for Dockerfile resolution
 
+Options (start):
+  --model <name>           Model to run (e.g. gpt-4o, claude-opus-4-6). Saved and
+                           restored on restart. Provider auto-detected from name.
+
 Examples:
   agentctl build
   agentctl start monitor "monitor agentchat #general and moderate"
-  agentctl start social "manage moltx and moltbook social media"
+  agentctl start social "manage moltx and moltbook social media" --model gpt-4o
   agentctl stop monitor
   agentctl status
 EOF
@@ -223,6 +227,16 @@ build_image() {
 start_agent() {
     local name="$1"
     local mission="$2"
+    shift 2
+
+    # Parse optional flags
+    local model=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model) model="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
 
     if [ -z "$name" ] || [ -z "$mission" ]; then
         echo "Usage: agentctl start <name> <mission>"
@@ -257,8 +271,13 @@ start_agent() {
     local state_dir="$AGENTS_DIR/$name"
     mkdir -p "$state_dir"
 
-    # Save mission for restarts
+    # Save mission and model for restarts
     echo "$mission" > "$state_dir/mission.txt"
+    if [ -n "$model" ]; then
+        echo "$model" > "$state_dir/model.txt"
+    else
+        rm -f "$state_dir/model.txt"
+    fi
 
     # Initialize context file
     if [ ! -f "$state_dir/context.md" ]; then
@@ -310,6 +329,9 @@ EOF
             -e "OPENAI_API_KEY=proxy-managed"
             -e "AGENT_RUNTIME=gro"
         )
+        if [ -n "$model" ]; then
+            auth_args+=(-e "AGENT_MODEL=$model")
+        fi
     else
         auth_args=(-v "${token_file}:/run/secrets/oauth-token:ro")
     fi
@@ -554,7 +576,7 @@ case "$1" in
         build_image "$2"
         ;;
     start)
-        start_agent "$2" "$3"
+        start_agent "$2" "$3" "${@:4}"
         ;;
     stop)
         stop_agent "$2"
@@ -574,7 +596,8 @@ case "$1" in
             echo "No mission found for '$2'. Cannot restart."
             exit 1
         fi
-        start_agent "$2" "$mission"
+        saved_model=$(cat "$AGENTS_DIR/$2/model.txt" 2>/dev/null)
+        start_agent "$2" "$mission" ${saved_model:+--model "$saved_model"}
         ;;
     status)
         show_status "$2"
@@ -612,7 +635,8 @@ case "$1" in
             mission=$(cat "$AGENTS_DIR/$name/mission.txt" 2>/dev/null)
             if [ -n "$mission" ]; then
                 echo "Restarting '$name'..."
-                start_agent "$name" "$mission"
+                saved_model=$(cat "$AGENTS_DIR/$name/model.txt" 2>/dev/null)
+                start_agent "$name" "$mission" ${saved_model:+--model "$saved_model"}
             else
                 echo "Skipping '$name' — no saved mission"
             fi
