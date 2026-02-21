@@ -310,10 +310,11 @@ EOF
         labels="$labels --label agentchat.protected=true"
     fi
 
-    # Write token to a temp file for secure mounting (P0-SANDBOX-2)
+    # Write token to a per-agent file for secure mounting (P0-SANDBOX-2)
     # The supervisor reads this file and deletes it after loading.
-    local token_file
-    token_file=$(mktemp)
+    # Uses a persistent path (not tmpfile) because the container starts
+    # asynchronously (-d) and needs the file to still exist on the host.
+    local token_file="${state_dir}/.oauth-token"
     echo -n "$CLAUDE_CODE_OAUTH_TOKEN" > "$token_file"
     chmod 600 "$token_file"
 
@@ -360,6 +361,8 @@ EOF
         $labels \
         -e "AGENTCHAT_PUBLIC=true" \
         -e "AGENTCHAT_URL=${AGENTCHAT_URL}" \
+        -e "NIKI_STARTUP_TIMEOUT=${NIKI_STARTUP_TIMEOUT:-600}" \
+        -e "NIKI_DEAD_AIR_TIMEOUT=${NIKI_DEAD_AIR_TIMEOUT:-5}" \
         "${auth_args[@]}" \
         -v "${state_dir}:/home/agent/.agentchat/agents/${name}" \
         $identity_mount \
@@ -368,8 +371,8 @@ EOF
 
     local run_status=$?
 
-    # Clean up host-side token file immediately (only exists in OAuth mode)
-    rm -f "$token_file"
+    # Clean up host-side token file after a delay (container needs time to read it)
+    (sleep 10 && rm -f "$token_file") &
 
     if [ $run_status -eq 0 ]; then
         echo "Agent '$name' started (container $(container_name "$name"))"
