@@ -103,6 +103,8 @@ async function cmdStart(flags) {
     console.log('No --server specified; using local EventEmitterBus (no network).');
   }
 
+  const command = flags.command || 'claude';
+
   const config = {
     count,
     maxActive,
@@ -110,6 +112,7 @@ async function cmdStart(flags) {
     channels,
     persist,
     basePath,
+    command,
     messageBus,
     repo: flags.repo || null,
     tokenBudget: parseInt(flags['token-budget'] || '0'),
@@ -264,6 +267,8 @@ Start options:
   -c, --channels <ch1,ch2>    Channels to join (default: #agents)
       --name <name>           Agent identity name
       --identity <path>       Path to identity JSON file
+      --command <cmd>         Agent command (default: claude). Use quotes for
+                              multi-word: --command "gro -P groq --bash"
       --repo <url>            Git repo to clone into workspaces
       --persist               Keep workspaces on shutdown
       --base-path <dir>       Workspace base directory
