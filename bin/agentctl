@@ -141,6 +141,7 @@ Commands:
   restart <name>           Restart an agent container
   status [name]            Show agent status (all if no name)
   logs <name> [lines]      Show agent logs (--container for container logs)
+  tail <name>              Follow agent container logs in real time
   list                     List all agents
   context <name>           Show agent's saved context
   stopall                  Stop all agents
@@ -592,6 +593,15 @@ show_logs() {
     fi
 }
 
+tail_logs() {
+    local name="$1"
+    if ! container_exists "$name"; then
+        echo "No container for '$name'"
+        exit 1
+    fi
+    exec podman logs -f "$(container_name "$name")"
+}
+
 list_agents() {
     echo "=== Registered Agents ==="
     for dir in "$AGENTS_DIR"/*/; do
@@ -686,6 +696,9 @@ case "$1" in
         ;;
     logs)
         show_logs "$2" "$3" "$4"
+        ;;
+    tail)
+        tail_logs "$2"
         ;;
     list)
         list_agents
