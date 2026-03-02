@@ -380,12 +380,39 @@ EOF
         network_flag="--network host"
     fi
 
+    # Build container args based on runtime.
+    # gro runtime: pass gro CLI flags (--persistent, --autodiscover-mcp, --name).
+    # Default (claude-code): pass raw name + mission to agent-supervisor entrypoint.
+    local container_args=()
+    local gro_volume=""
+    local userns_flag="--userns=keep-id:uid=1001,gid=1001"
+    if [ "${AGENT_RUNTIME:-}" = "gro" ]; then
+        container_args=(--autodiscover-mcp --persistent --name "$name" "$mission")
+        # gro uses /home/node/.gro for state; mount a per-agent volume
+        local gro_vol="gro-agent-${name}"
+        podman volume exists "$gro_vol" 2>/dev/null || podman volume create "$gro_vol" > /dev/null
+        gro_volume="-v ${gro_vol}:/home/node/.gro"
+        # thesystem-gro image uses node user (uid 1000), not agent (uid 1001)
+        userns_flag="--userns=keep-id:uid=1000,gid=1000"
+
+        # Seed mcp.json into the gro volume so --autodiscover-mcp finds it.
+        # agentchat-mcp is installed globally in the thesystem-gro image.
+        # It inherits AGENTCHAT_URL and AGENTCHAT_PUBLIC from the container env.
+        local mcp_json='{"agentchat":{"command":"agentchat-mcp"}}'
+        podman run --rm $userns_flag \
+            -v "${gro_vol}:/home/node/.gro" \
+            --entrypoint sh "$IMAGE_NAME" -c \
+            "mkdir -p /home/node/.gro && echo '${mcp_json}' > /home/node/.gro/mcp.json" > /dev/null 2>&1
+    else
+        container_args=("$name" "$mission")
+    fi
+
     echo "Starting agent '$name' in container..."
     podman run -d \
         --name "$(container_name "$name")" \
         --restart on-failure:3 \
         --log-driver=k8s-file \
-        --userns=keep-id:uid=1001,gid=1001 \
+        $userns_flag \
         $network_flag \
         $labels \
         -e "AGENTCHAT_PUBLIC=true" \
@@ -395,9 +422,10 @@ EOF
         ${NTFY:+-e "NTFY=${NTFY}"} \
         "${auth_args[@]}" \
         -v "${state_dir}:/home/agent/.agentchat/agents/${name}" \
+        $gro_volume \
         $identity_mount \
         "$IMAGE_NAME" \
-        "$name" "$mission" > /dev/null
+        "${container_args[@]}" > /dev/null
 
     local run_status=$?
 
