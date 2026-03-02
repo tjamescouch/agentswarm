@@ -152,6 +152,7 @@ Environment:
   AGENTAUTH_PORT           If set, use agentauth proxy mode (gro runtime) on this port.
                            No OAuth token needed. AGENTAUTH_HOST defaults to host.lima.internal.
   AGENTAUTH_HOST           Proxy host (default: host.lima.internal, only used with AGENTAUTH_PORT)
+  AGENTAUTH_TOKEN          Session token for the agentauth proxy (from ~/.thesystem/agentauth-token)
   AGENTCTL_IMAGE           Container image to use (default: agentchat-agent:latest)
   AGENTCTL_REPO            Path to agentchat repo for Dockerfile resolution
 
@@ -338,13 +339,25 @@ EOF
     # Build auth env args depending on mode
     local auth_args=()
     if [ -n "$use_proxy" ]; then
+        # AGENTAUTH_TOKEN carries the session token the proxy expects.
+        # Falls back to "proxy-managed" for backwards compat, but the proxy
+        # will reject it with 403 unless the real token is supplied.
+        local proxy_token="${AGENTAUTH_TOKEN:-proxy-managed}"
         auth_args=(
             -e "ANTHROPIC_BASE_URL=http://${proxy_host}:${proxy_port}/anthropic"
-            -e "ANTHROPIC_API_KEY=proxy-managed"
+            -e "ANTHROPIC_API_KEY=${proxy_token}"
             -e "OPENAI_BASE_URL=http://${proxy_host}:${proxy_port}/openai"
-            -e "OPENAI_API_KEY=proxy-managed"
+            -e "OPENAI_API_KEY=${proxy_token}"
+            -e "XAI_BASE_URL=http://${proxy_host}:${proxy_port}/xai"
+            -e "XAI_API_KEY=${proxy_token}"
             -e "GROQ_BASE_URL=http://${proxy_host}:${proxy_port}/groq"
-            -e "GROQ_API_KEY=proxy-managed"
+            -e "GROQ_API_KEY=${proxy_token}"
+            -e "GOOGLE_BASE_URL=http://${proxy_host}:${proxy_port}/google"
+            -e "GOOGLE_API_KEY=${proxy_token}"
+            -e "DEEPSEEK_BASE_URL=http://${proxy_host}:${proxy_port}/deepseek"
+            -e "DEEPSEEK_API_KEY=${proxy_token}"
+            -e "MISTRAL_BASE_URL=http://${proxy_host}:${proxy_port}/mistral"
+            -e "MISTRAL_API_KEY=${proxy_token}"
             -e "AGENT_RUNTIME=gro"
         )
     else
