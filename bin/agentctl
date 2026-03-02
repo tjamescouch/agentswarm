@@ -395,6 +395,11 @@ EOF
         # thesystem-gro image uses node user (uid 1000), not agent (uid 1001)
         userns_flag="--userns=keep-id:uid=1000,gid=1000"
 
+        # Dev mount: overlay host gro source for rapid iteration without npm publish
+        if [ -n "${GRO_DEV_MOUNT:-}" ]; then
+            gro_volume="${gro_volume} -v ${GRO_DEV_MOUNT}:/usr/local/lib/node_modules/@tjamescouch/gro:ro"
+        fi
+
         # Seed mcp.json into the gro volume so --autodiscover-mcp finds it.
         # agentchat-mcp is installed globally in the thesystem-gro image.
         # It inherits AGENTCHAT_URL and AGENTCHAT_PUBLIC from the container env.
