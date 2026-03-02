@@ -387,7 +387,7 @@ EOF
     local gro_volume=""
     local userns_flag="--userns=keep-id:uid=1001,gid=1001"
     if [ "${AGENT_RUNTIME:-}" = "gro" ]; then
-        container_args=(--autodiscover-mcp --persistent --name "$name" "$mission")
+        container_args=(--autodiscover-mcp --persistent --no-relay --name "$name" "$mission")
         # gro uses /home/node/.gro for state; mount a per-agent volume
         local gro_vol="gro-agent-${name}"
         podman volume exists "$gro_vol" 2>/dev/null || podman volume create "$gro_vol" > /dev/null
