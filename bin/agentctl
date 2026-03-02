@@ -7,7 +7,7 @@ SECRETS_DIR="$HOME/.agentchat/secrets"
 ENCRYPTED_TOKEN_FILE="$SECRETS_DIR/oauth-token.enc"
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-IMAGE_NAME="agentchat-agent:latest"
+IMAGE_NAME="${AGENTCTL_IMAGE:-agentchat-agent:latest}"
 CONTAINER_PREFIX="agentchat"
 
 # Default server URL
@@ -152,6 +152,7 @@ Environment:
   AGENTAUTH_PORT           If set, use agentauth proxy mode (gro runtime) on this port.
                            No OAuth token needed. AGENTAUTH_HOST defaults to host.lima.internal.
   AGENTAUTH_HOST           Proxy host (default: host.lima.internal, only used with AGENTAUTH_PORT)
+  AGENTCTL_IMAGE           Container image to use (default: agentchat-agent:latest)
   AGENTCTL_REPO            Path to agentchat repo for Dockerfile resolution
 
 Options (start):
