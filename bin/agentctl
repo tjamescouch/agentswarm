@@ -359,12 +359,20 @@ EOF
         auth_args+=(-e "AGENT_SUMMARIZER_MODEL=$summarizer_model")
     fi
 
+    # In proxy mode, use host networking so the container can reach the
+    # agentauth proxy on the VM's loopback / host.lima.internal.
+    local network_flag=""
+    if [ -n "$use_proxy" ]; then
+        network_flag="--network host"
+    fi
+
     echo "Starting agent '$name' in container..."
     podman run -d \
         --name "$(container_name "$name")" \
         --restart on-failure:3 \
         --log-driver=k8s-file \
         --userns=keep-id:uid=1001,gid=1001 \
+        $network_flag \
         $labels \
         -e "AGENTCHAT_PUBLIC=true" \
         -e "AGENTCHAT_URL=${AGENTCHAT_URL}" \
